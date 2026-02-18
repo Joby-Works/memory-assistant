@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useCallback} from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import {voiceRecordingService} from '../../data/voiceRecordingService';
-import {APP_CONSTANTS} from '../../../../core/constants';
+import { useVoiceRecording } from '@features/recording/presentation/useVoiceRecording';
+import { APP_CONSTANTS } from '@core/constants';
 
 interface RecordingScreenProps {
   onRecordingComplete: (filePath: string) => void;
@@ -19,6 +19,7 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
   onRecordingComplete,
   onCancel,
 }) => {
+  const voiceRecordingService = useVoiceRecording();
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -30,7 +31,7 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
-    
+
     if (isRecording && !isPaused) {
       interval = setInterval(() => {
         setSeconds(s => {
@@ -71,8 +72,8 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
       setIsRecording(true);
       setSeconds(0);
       setHasRecording(false);
-      
-      voiceRecordingService.onRecordProgress((s) => {
+
+      voiceRecordingService.onRecordProgress(s => {
         setSeconds(s);
         if (s >= APP_CONSTANTS.MAX_RECORDING_DURATION_SECONDS) {
           handleStopRecording();
@@ -85,7 +86,7 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
   const handleStopRecording = async () => {
     if (!isRecording) return;
-    
+
     try {
       const filePath = await voiceRecordingService.stopRecording();
       setCurrentFilePath(filePath);
@@ -107,8 +108,8 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
       } else {
         await voiceRecordingService.startPlayback(currentFilePath);
         setIsPlaying(true);
-        
-        voiceRecordingService.onPlaybackProgress((s) => {
+
+        voiceRecordingService.onPlaybackProgress(s => {
           if (s >= seconds) {
             voiceRecordingService.stopPlayback();
             setIsPlaying(false);
@@ -120,8 +121,12 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (currentFilePath) {
+      if (isPlaying) {
+        await voiceRecordingService.stopPlayback();
+        setIsPlaying(false);
+      }
       onRecordingComplete(currentFilePath);
     }
   };
@@ -145,9 +150,9 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       <View style={styles.content}>
         <Text style={styles.prompt}>
-          {!hasRecording 
-            ? "Did anyone share something today that you should remember?" 
-            : "Review your recording"}
+          {!hasRecording
+            ? 'Did anyone share something today that you should remember?'
+            : 'Review your recording'}
         </Text>
 
         {!hasRecording && !isRecording && (
@@ -158,13 +163,11 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
         {hasRecording && (
           <View style={styles.playbackContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.playButton}
               onPress={handlePlayRecording}
             >
-              <Text style={styles.playButtonText}>
-                {isPlaying ? '⏸' : '▶'}
-              </Text>
+              <Text style={styles.playButtonText}>{isPlaying ? '⏸' : '▶'}</Text>
             </TouchableOpacity>
             <Text style={styles.durationText}>
               {voiceRecordingService.formatTime(seconds)}
@@ -177,7 +180,7 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
             style={[
               styles.recordButton,
               isRecording && styles.recordButtonActive,
-              {transform: [{scale: pulseAnim}]},
+              { transform: [{ scale: pulseAnim }] },
             ]}
           >
             <TouchableOpacity
@@ -185,21 +188,26 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
               onPress={isRecording ? handleStopRecording : handleStartRecording}
               disabled={hasRecording}
             >
-              <View 
+              <View
                 style={[
                   styles.recordIcon,
                   isRecording && styles.recordIconActive,
-                ]} 
+                ]}
               />
             </TouchableOpacity>
           </Animated.View>
 
           <View style={styles.progressContainer}>
             <View style={styles.progressBackground}>
-              <View style={[styles.progressFill, {width: `${progressWidth}%`}]} />
+              <View
+                style={[styles.progressFill, { width: `${progressWidth}%` }]}
+              />
             </View>
             <Text style={styles.timerText}>
-              {voiceRecordingService.formatTime(seconds)} / {voiceRecordingService.formatTime(APP_CONSTANTS.MAX_RECORDING_DURATION_SECONDS)}
+              {voiceRecordingService.formatTime(seconds)} /{' '}
+              {voiceRecordingService.formatTime(
+                APP_CONSTANTS.MAX_RECORDING_DURATION_SECONDS,
+              )}
             </Text>
           </View>
         </View>
@@ -207,13 +215,13 @@ export const RecordingScreen: React.FC<RecordingScreenProps> = ({
 
       {hasRecording && (
         <View style={styles.actions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.secondaryButton}
             onPress={handleReRecord}
           >
             <Text style={styles.secondaryButtonText}>Re-record</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleConfirm}
           >

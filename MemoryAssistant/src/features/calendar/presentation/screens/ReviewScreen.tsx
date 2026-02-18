@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
-import type {CalendarEvent} from '../../../../core/types';
-import {calendarService} from '../../../calendar/data/calendarService';
+import type { CalendarEvent } from '@core/types';
+import { calendarService } from '@features/calendar/data/calendarService';
 
 interface ReviewScreenProps {
   pendingEvents: CalendarEvent[];

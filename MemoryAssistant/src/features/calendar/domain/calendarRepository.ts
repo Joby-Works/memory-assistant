@@ -1,5 +1,5 @@
-export type {CalendarEvent} from '../../../core/types';
-import type {CalendarEvent} from '../../../core/types';
+export type { CalendarEvent } from '@core/types';
+import type { CalendarEvent } from '@core/types';
 
 export interface CalendarRepository {
   requestPermission(): Promise<boolean>;
@@ -15,4 +15,5 @@ export interface CalendarEventRepository {
   getAll(): Promise<CalendarEvent[]>;
   getPendingReview(): Promise<CalendarEvent[]>;
   update(event: CalendarEvent): Promise<void>;
+  confirmEvent(event: CalendarEvent): Promise<string>;
 }

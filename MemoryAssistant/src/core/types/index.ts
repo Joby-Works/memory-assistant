@@ -1,3 +1,5 @@
+import { WhisperModelSize } from '@features/transcription/data/whisperModels';
+
 export type RecordingStatus = 'pending' | 'saved' | 'calendared';
 
 export interface Recording {
@@ -26,6 +28,7 @@ export interface UserSettings {
   reviewTime: string;
   hasCompletedOnboarding: boolean;
   calendarPermissionGranted: boolean;
+  whisperModel: WhisperModelSize;
 }
 
 export interface DateExtraction {

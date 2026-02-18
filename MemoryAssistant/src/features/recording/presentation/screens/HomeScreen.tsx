@@ -1,10 +1,7 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ModelDownloadIndicator } from '@features/transcription/presentation/components/ModelDownloadIndicator';
+import { useModelDownloadProgress } from '@features/transcription/presentation/useModelDownloadService';
 
 interface HomeScreenProps {
   onStartRecording: () => void;
@@ -20,18 +17,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   pendingReviewCount,
 }) => {
   const today = new Date();
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dayNames = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  const { activeDownload, cancelDownload } = useModelDownloadProgress();
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.dateText}>
-          {dayNames[today.getDay()]}, {monthNames[today.getMonth()]} {today.getDate()}
+          {dayNames[today.getDay()]}, {monthNames[today.getMonth()]}{' '}
+          {today.getDate()}
         </Text>
-        <TouchableOpacity onPress={onOpenSettings}>
-          <Text style={styles.settingsIcon}>⚙</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {activeDownload && (
+            <ModelDownloadIndicator
+              modelSize={activeDownload.size}
+              progress={activeDownload.progress}
+              onCancel={cancelDownload}
+            />
+          )}
+          <TouchableOpacity onPress={onOpenSettings}>
+            <Text style={styles.settingsIcon}>⚙</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -40,7 +70,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </Text>
 
         <View style={styles.recordButtonContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.recordButton}
             onPress={onStartRecording}
           >
@@ -52,21 +82,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </View>
 
         {pendingReviewCount > 0 && (
-          <TouchableOpacity 
-            style={styles.reviewBanner}
-            onPress={onGoToReview}
-          >
+          <TouchableOpacity style={styles.reviewBanner} onPress={onGoToReview}>
             <Text style={styles.reviewBannerText}>
-              {pendingReviewCount} {pendingReviewCount === 1 ? 'memory' : 'memories'} to review
+              {pendingReviewCount}{' '}
+              {pendingReviewCount === 1 ? 'memory' : 'memories'} to review
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          All data stays on your device
-        </Text>
+        <Text style={styles.footerText}>All data stays on your device</Text>
       </View>
     </View>
   );
@@ -83,6 +109,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     paddingTop: 60,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   dateText: {
     color: '#ffffff',
@@ -119,7 +150,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
     shadowColor: '#4a90d9',
-    shadowOffset: {width: 0, height: 4},
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,

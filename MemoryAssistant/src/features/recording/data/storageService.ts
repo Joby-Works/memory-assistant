@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type {Recording, CalendarEvent, UserSettings} from '../../../core/types';
-import {STORAGE_KEYS} from '../../../core/constants';
+import type { Recording, CalendarEvent, UserSettings } from '@core/types';
+import { STORAGE_KEYS } from '@core/constants';
 
-class StorageService {
+export class StorageService {
   async saveSettings(settings: UserSettings): Promise<void> {
-    await AsyncStorage.setItem(STORAGE_KEYS.USER_SETTINGS, JSON.stringify(settings));
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.USER_SETTINGS,
+      JSON.stringify(settings),
+    );
   }
 
   async getSettings(): Promise<UserSettings | null> {
@@ -15,7 +18,10 @@ class StorageService {
   async saveRecording(recording: Recording): Promise<void> {
     const recordings = await this.getRecordings();
     recordings.push(recording);
-    await AsyncStorage.setItem(STORAGE_KEYS.RECORDINGS, JSON.stringify(recordings));
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.RECORDINGS,
+      JSON.stringify(recordings),
+    );
   }
 
   async getRecordings(): Promise<Recording[]> {
@@ -33,7 +39,10 @@ class StorageService {
     const index = recordings.findIndex(r => r.id === recording.id);
     if (index !== -1) {
       recordings[index] = recording;
-      await AsyncStorage.setItem(STORAGE_KEYS.RECORDINGS, JSON.stringify(recordings));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.RECORDINGS,
+        JSON.stringify(recordings),
+      );
     }
   }
 
@@ -45,7 +54,10 @@ class StorageService {
   async saveCalendarEvent(event: CalendarEvent): Promise<void> {
     const events = await this.getCalendarEvents();
     events.push(event);
-    await AsyncStorage.setItem(STORAGE_KEYS.CALENDAR_EVENTS, JSON.stringify(events));
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.CALENDAR_EVENTS,
+      JSON.stringify(events),
+    );
   }
 
   async getCalendarEvents(): Promise<CalendarEvent[]> {
@@ -64,7 +76,10 @@ class StorageService {
     const index = events.findIndex(e => e.id === event.id);
     if (index !== -1) {
       events[index] = event;
-      await AsyncStorage.setItem(STORAGE_KEYS.CALENDAR_EVENTS, JSON.stringify(events));
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.CALENDAR_EVENTS,
+        JSON.stringify(events),
+      );
     }
   }
 
@@ -74,7 +89,9 @@ class StorageService {
   }
 
   async hasCompletedOnboarding(): Promise<boolean> {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.HAS_COMPLETED_ONBOARDING);
+    const data = await AsyncStorage.getItem(
+      STORAGE_KEYS.HAS_COMPLETED_ONBOARDING,
+    );
     return data === 'true';
   }
 
@@ -91,5 +108,3 @@ class StorageService {
     ]);
   }
 }
-
-export const storageService = new StorageService();

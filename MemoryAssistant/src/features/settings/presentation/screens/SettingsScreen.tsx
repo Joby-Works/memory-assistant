@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,26 +6,52 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import {
+  WhisperModelSize,
+  WHISPER_MODELS,
+  formatBytes,
+} from '@features/transcription/data/whisperModels';
+import { useModelDownloadService } from '@features/transcription/presentation/useModelDownloadService';
 
 interface SettingsScreenProps {
   reminderTime: string;
   reviewTime: string;
+  whisperModel: WhisperModelSize;
   onBack: () => void;
   onUpdateReminderTime: (time: string) => void;
   onUpdateReviewTime: (time: string) => void;
+  onUpdateWhisperModel: (model: WhisperModelSize) => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   reminderTime,
   reviewTime,
+  whisperModel,
   onBack,
   onUpdateReminderTime,
   onUpdateReviewTime,
+  onUpdateWhisperModel,
 }) => {
   const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [showReviewPicker, setShowReviewPicker] = useState(false);
+  const [downloadedModels, setDownloadedModels] = useState<WhisperModelSize[]>(
+    [],
+  );
+  const [downloadingModel, setDownloadingModel] =
+    useState<WhisperModelSize | null>(null);
+  const modelDownloadService = useModelDownloadService();
+
+  useEffect(() => {
+    loadDownloadedModels();
+  }, []);
+
+  const loadDownloadedModels = async () => {
+    const downloaded = await modelDownloadService.getDownloadedModels();
+    setDownloadedModels(downloaded);
+  };
 
   const parseTime = (timeStr: string): Date => {
     const [hours, minutes] = timeStr.split(':');
@@ -40,18 +66,66 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     return `${hours}:${minutes}`;
   };
 
-  const handleReminderTimeChange = (_event: any, selectedDate?: Date) => {
+  const handleReminderTimeChange = (_event: unknown, selectedDate?: Date) => {
     setShowReminderPicker(Platform.OS === 'ios');
     if (selectedDate) {
       onUpdateReminderTime(formatTime(selectedDate));
     }
   };
 
-  const handleReviewTimeChange = (_event: any, selectedDate?: Date) => {
+  const handleReviewTimeChange = (_event: unknown, selectedDate?: Date) => {
     setShowReviewPicker(Platform.OS === 'ios');
     if (selectedDate) {
       onUpdateReviewTime(formatTime(selectedDate));
     }
+  };
+
+  const handleModelSelect = async (modelSize: WhisperModelSize) => {
+    if (modelSize === whisperModel) return;
+
+    const isDownloaded = downloadedModels.includes(modelSize);
+
+    if (!isDownloaded) {
+      const model = WHISPER_MODELS.find(m => m.size === modelSize);
+      const sizeStr = model ? formatBytes(model.bytes) : '';
+
+      Alert.alert(
+        'Download Model?',
+        `The "${model?.name}" model (~${sizeStr}) needs to be downloaded first. Continue?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Download',
+            onPress: () => downloadAndSelectModel(modelSize),
+          },
+        ],
+      );
+      return;
+    }
+
+    onUpdateWhisperModel(modelSize);
+  };
+
+  const downloadAndSelectModel = async (modelSize: WhisperModelSize) => {
+    setDownloadingModel(modelSize);
+    try {
+      const success = await modelDownloadService.downloadModel(modelSize);
+      if (success) {
+        setDownloadedModels(prev => [...prev, modelSize]);
+        onUpdateWhisperModel(modelSize);
+      }
+    } catch (_error) {
+      Alert.alert(
+        'Download Failed',
+        'Could not download the model. Please try again.',
+      );
+    } finally {
+      setDownloadingModel(null);
+    }
+  };
+
+  const isModelDownloaded = (modelSize: WhisperModelSize) => {
+    return downloadedModels.includes(modelSize);
   };
 
   return (
@@ -67,8 +141,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <ScrollView style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.settingRow}
             onPress={() => setShowReminderPicker(true)}
           >
@@ -81,7 +155,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <Text style={styles.settingValue}>{reminderTime}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingRow}
             onPress={() => setShowReviewPicker(true)}
           >
@@ -93,6 +167,64 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             </View>
             <Text style={styles.settingValue}>{reviewTime}</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Transcription</Text>
+
+          <Text style={styles.modelSectionDescription}>
+            Choose the AI model for transcription. Larger models are more
+            accurate but use more storage.
+          </Text>
+
+          {WHISPER_MODELS.map(model => {
+            const isSelected = whisperModel === model.size;
+            const isDownloaded = isModelDownloaded(model.size);
+            const isDownloading = downloadingModel === model.size;
+
+            return (
+              <TouchableOpacity
+                key={model.size}
+                style={[styles.modelRow, isSelected && styles.modelRowSelected]}
+                onPress={() => handleModelSelect(model.size)}
+                disabled={isDownloading}
+              >
+                <View style={styles.modelInfo}>
+                  <View style={styles.modelHeader}>
+                    <Text
+                      style={[
+                        styles.modelName,
+                        isSelected && styles.modelNameSelected,
+                      ]}
+                    >
+                      {model.name}
+                    </Text>
+                    {isSelected && (
+                      <View style={styles.selectedBadge}>
+                        <Text style={styles.selectedBadgeText}>Active</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.modelDescription}>
+                    {model.description}
+                  </Text>
+                  <Text style={styles.modelSize}>
+                    {formatBytes(model.bytes)}
+                  </Text>
+                </View>
+
+                <View style={styles.modelStatus}>
+                  {isDownloading ? (
+                    <Text style={styles.downloadingText}>Downloading...</Text>
+                  ) : isDownloaded ? (
+                    <Text style={styles.downloadedText}>Downloaded</Text>
+                  ) : (
+                    <Text style={styles.notDownloadedText}>Not downloaded</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={styles.section}>
@@ -198,6 +330,77 @@ const styles = StyleSheet.create({
     color: '#4a90d9',
     fontSize: 16,
     fontWeight: '500',
+  },
+  modelSectionDescription: {
+    color: '#707080',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  modelRow: {
+    backgroundColor: '#2a2a3e',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  modelRowSelected: {
+    borderColor: '#4a90d9',
+  },
+  modelInfo: {
+    marginBottom: 8,
+  },
+  modelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modelName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modelNameSelected: {
+    color: '#4a90d9',
+  },
+  selectedBadge: {
+    backgroundColor: '#4a90d9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  selectedBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  modelDescription: {
+    color: '#707080',
+    fontSize: 13,
+  },
+  modelSize: {
+    color: '#505060',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  modelStatus: {
+    borderTopWidth: 1,
+    borderTopColor: '#3a3a4e',
+    paddingTop: 8,
+  },
+  downloadedText: {
+    color: '#4ade80',
+    fontSize: 12,
+  },
+  downloadingText: {
+    color: '#f59e0b',
+    fontSize: 12,
+  },
+  notDownloadedText: {
+    color: '#505060',
+    fontSize: 12,
   },
   infoRow: {
     backgroundColor: '#2a2a3e',

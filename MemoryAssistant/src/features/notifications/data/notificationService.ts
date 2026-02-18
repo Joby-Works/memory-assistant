@@ -4,10 +4,10 @@ import notifee, {
   TriggerType,
   RepeatFrequency,
 } from '@notifee/react-native';
-import {Platform} from 'react-native';
-import {NOTIFICATION_CHANNELS} from '../../../core/constants';
+import { Platform } from 'react-native';
+import { NOTIFICATION_CHANNELS } from '@core/constants';
 
-class NotificationService {
+export class NotificationService {
   async requestPermission(): Promise<boolean> {
     const settings = await notifee.requestPermission();
     return settings.authorizationStatus >= 1;
@@ -109,7 +109,10 @@ class NotificationService {
     await notifee.cancelNotification(notificationId);
   }
 
-  async displayImmediateNotification(title: string, body: string): Promise<void> {
+  async displayImmediateNotification(
+    title: string,
+    body: string,
+  ): Promise<void> {
     await notifee.displayNotification({
       title,
       body,
@@ -122,5 +125,3 @@ class NotificationService {
     });
   }
 }
-
-export const notificationService = new NotificationService();

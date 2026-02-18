@@ -1,4 +1,4 @@
-import type {Recording} from '../../../core/types';
+import type { Recording } from '@core/types';
 
 export interface RecordingRepository {
   save(recording: Recording): Promise<void>;

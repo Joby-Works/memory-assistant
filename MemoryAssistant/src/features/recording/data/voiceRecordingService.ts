@@ -1,16 +1,25 @@
-import AudioRecorderPlayer from 'react-native-audio-recorder-player';
-import {Platform, PermissionsAndroid} from 'react-native';
-import {APP_CONSTANTS} from '../../../core/constants';
+import AudioRecord from 'react-native-audio-record';
+import { Platform, PermissionsAndroid } from 'react-native';
+import { APP_CONSTANTS } from '@core/constants';
+import RNFS from 'react-native-fs';
 
-class VoiceRecordingService {
-  // @ts-ignore - library types are incomplete
-  private audioRecorderPlayer;
+export class VoiceRecordingService {
   private isRecording = false;
   private currentFilePath: string | null = null;
+  private recordingOptions = {
+    sampleRate: 16000,
+    channels: 1,
+    bitsPerSample: 16,
+    wavFile: 'recording.wav',
+  };
 
   constructor() {
-    // @ts-ignore - library types are incomplete
-    this.audioRecorderPlayer = new AudioRecorderPlayer();
+    AudioRecord.init({
+      sampleRate: 16000,
+      channels: 1,
+      bitsPerSample: 16,
+      wavFile: 'recording.wav',
+    });
   }
 
   async requestPermissions(): Promise<boolean> {
@@ -19,7 +28,10 @@ class VoiceRecordingService {
         const grants = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
         ]);
-        return grants[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
+        return (
+          grants[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] ===
+          PermissionsAndroid.RESULTS.GRANTED
+        );
       } catch {
         return false;
       }
@@ -38,20 +50,27 @@ class VoiceRecordingService {
     }
 
     const timestamp = Date.now();
-    let path: string;
+    const filename = `recording_${timestamp}.wav`;
+    const path = `${RNFS.DocumentDirectoryPath}/${filename}`;
 
-    if (Platform.OS === 'ios') {
-      path = `recording_${timestamp}.m4a`;
-    } else {
-      path = `/data/user/0/com.memoryassistant/files/recording_${timestamp}.mp4`;
-    }
+    this.recordingOptions.wavFile = filename;
+    await AudioRecord.init(this.recordingOptions);
 
     this.currentFilePath = path;
-
-    // @ts-ignore - library types are incomplete
-    await this.audioRecorderPlayer.startRecorder(path);
+    await AudioRecord.start();
 
     this.isRecording = true;
+
+    AudioRecord.on('data', (_data: string) => {
+      // Audio data chunks received
+    });
+
+    console.log('[VoiceRecordingService] Starting recording with path:', path);
+    console.log(
+      '[VoiceRecordingService] Recording options:',
+      this.recordingOptions,
+    );
+
     return this.currentFilePath;
   }
 
@@ -60,65 +79,75 @@ class VoiceRecordingService {
       throw new Error('Not currently recording');
     }
 
-    const result = await this.audioRecorderPlayer.stopRecorder();
-    // @ts-ignore - library types are incomplete
-    this.audioRecorderPlayer.removeRecordBackListener();
+    const result = await AudioRecord.stop();
     this.isRecording = false;
-    return result;
+
+    // Fix: ensure correct path (library may return incorrect path)
+    const filename = this.currentFilePath?.split('/').pop() || '';
+    const correctPath = `${RNFS.DocumentDirectoryPath}/${filename}`;
+
+    console.log(
+      '[VoiceRecordingService] Stopped recording, file:',
+      correctPath,
+    );
+
+    return correctPath;
   }
 
   async pauseRecording(): Promise<void> {
-    if (this.isRecording) {
-      await this.audioRecorderPlayer.pauseRecorder();
-    }
+    console.warn('[VoiceRecordingService] Pause not supported in this library');
   }
 
   async resumeRecording(): Promise<void> {
-    await this.audioRecorderPlayer.resumeRecorder();
+    console.warn(
+      '[VoiceRecordingService] Resume not supported in this library',
+    );
   }
 
   onRecordProgress(callback: (seconds: number) => void): void {
-    // @ts-ignore - library types are incomplete
-    this.audioRecorderPlayer.addRecordBackListener((e: {currentPosition: number}) => {
-      const seconds = Math.floor(e.currentPosition / 1000);
-      callback(seconds);
-      
-      if (seconds >= APP_CONSTANTS.MAX_RECORDING_DURATION_SECONDS) {
-        this.stopRecording();
+    let startTime = Date.now();
+
+    const interval = setInterval(() => {
+      if (this.isRecording) {
+        const seconds = Math.floor((Date.now() - startTime) / 1000);
+        callback(seconds);
+
+        if (seconds >= APP_CONSTANTS.MAX_RECORDING_DURATION_SECONDS) {
+          this.stopRecording();
+          clearInterval(interval);
+        }
+      } else {
+        clearInterval(interval);
       }
-    });
+    }, 1000);
   }
 
   async startPlayback(filePath: string): Promise<void> {
-    await this.audioRecorderPlayer.startPlayer(filePath);
+    // Playback not implemented in this service
+    console.warn('[VoiceRecordingService] Playback not implemented');
   }
 
   async stopPlayback(): Promise<void> {
-    await this.audioRecorderPlayer.stopPlayer();
-    // @ts-ignore - library types are incomplete
-    this.audioRecorderPlayer.removePlayBackListener();
+    // Playback not implemented in this service
   }
 
   async pausePlayback(): Promise<void> {
-    await this.audioRecorderPlayer.pausePlayer();
+    // Playback not implemented in this service
   }
 
   async resumePlayback(): Promise<void> {
-    await this.audioRecorderPlayer.resumePlayer();
+    // Playback not implemented in this service
   }
 
   onPlaybackProgress(callback: (seconds: number) => void): void {
-    // @ts-ignore - library types are incomplete
-    this.audioRecorderPlayer.addPlayBackListener((e: {currentPosition: number}) => {
-      callback(Math.floor(e.currentPosition / 1000));
-    });
+    // Playback not implemented in this service
   }
 
   formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${secs
+      .toString()
+      .padStart(2, '0')}`;
   }
 }
-
-export const voiceRecordingService = new VoiceRecordingService();
